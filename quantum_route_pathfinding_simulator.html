@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quantum Route Pathfinding Simulator</title>
+<style>
+:root{
+ --bg:#eef1f9;--panel:#ffffff;--panel2:#f5f8ff;--ink:#141a33;--mute:#5d6584;--line:#d9def0;
+ --cell:#e6ebf7;--wall:#2b1420;--red:#e11d48;--cy:#0891b2;--cy2:#22d3ee;--yel:#ca8a04;
+ --grn:#16a34a;--pur:#9333ea;--ora:#f97316;--acc:#6d28d9;
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){
+ :root:not([data-theme="light"]){
+  --bg:#070a16;--panel:#0f1428;--panel2:#141b36;--ink:#e7ebff;--mute:#8a93b8;--line:#232b4d;
+  --cell:#141a36;--wall:#2a0d18;--red:#ff3b6b;--cy:#22e5ff;--cy2:#7df3ff;--yel:#ffe14d;
+  --grn:#39ff88;--pur:#c26bff;--ora:#ff9a3c;--acc:#a78bfa
+ }
+}
+:root[data-theme="dark"]{
+ --bg:#070a16;--panel:#0f1428;--panel2:#141b36;--ink:#e7ebff;--mute:#8a93b8;--line:#232b4d;
+ --cell:#141a36;--wall:#2a0d18;--red:#ff3b6b;--cy:#22e5ff;--cy2:#7df3ff;--yel:#ffe14d;
+ --grn:#39ff88;--pur:#c26bff;--ora:#ff9a3c;--acc:#a78bfa
+}
+:root[data-theme="light"]{
+ --bg:#eef1f9;--panel:#ffffff;--panel2:#f5f8ff;--ink:#141a33;--mute:#5d6584;--line:#d9def0;
+ --cell:#e6ebf7;--wall:#2b1420;--red:#e11d48;--cy:#0891b2;--cy2:#22d3ee;--yel:#ca8a04;
+ --grn:#16a34a;--pur:#9333ea;--ora:#f97316;--acc:#6d28d9
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{
+ background:
+  radial-gradient(1200px 600px at 10% -10%,color-mix(in srgb,var(--acc) 22%,transparent),transparent),
+  radial-gradient(900px 500px at 90% 0%,color-mix(in srgb,var(--cy) 16%,transparent),transparent),
+  var(--bg);
+ color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh
+}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:20px;letter-spacing:.3px}
+h1 span{background:linear-gradient(90deg,var(--cy),var(--pur));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.sub{color:var(--mute);font-size:12px}
+.hdr-right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.badge{padding:5px 11px;border-radius:99px;border:1px solid var(--line);font-size:12px;font-weight:600;background:var(--panel2)}
+.ok{color:var(--grn)}.bad{color:var(--red)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:14px;padding:14px 18px 20px;max-width:1520px;margin:auto}
+@media(max-width:990px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mute)}
+canvas{width:100%;aspect-ratio:35/21;display:block;border-radius:10px;touch-action:none;cursor:crosshair;box-shadow:0 0 0 1px var(--line),0 0 32px color-mix(in srgb,var(--cy) 18%,transparent)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+button,select{background:var(--cell);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer;transition:border-color .15s ease}
+button:hover,select:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+button.go{background:linear-gradient(90deg,var(--cy),var(--pur));color:#06101c;font-weight:700;border:0;box-shadow:0 0 14px color-mix(in srgb,var(--cy) 35%,transparent)}
+.sl{display:grid;grid-template-columns:84px 1fr 38px;gap:8px;align-items:center;margin:4px 0}
+.sl output{text-align:right;font-variant-numeric:tabular-nums;color:var(--mute);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--acc)}
+label.ck{display:inline-flex;gap:5px;align-items:center;color:var(--mute);cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 4px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600}
+.bar{height:18px;border-radius:5px;background:var(--cell);position:relative;overflow:hidden;margin:4px 0;cursor:pointer}
+.bar:hover{border:1px solid var(--acc)}
+.bar i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--pur) 55%,transparent)}
+.bar.pick i{background:color-mix(in srgb,var(--grn) 55%,transparent)}
+.bar b{position:relative;font-size:11px;padding-left:6px;line-height:18px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.leg{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--mute);margin-top:8px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+#log{font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--mute);max-height:120px;overflow:auto}
+#info{font-size:12px;color:var(--mute);min-height:18px;margin-top:7px;padding:4px 8px;background:var(--panel2);border-radius:6px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+ <div>
+  <h1>⚛ <span>Quantum Route Pathfinding Simulator</span></h1>
+  <div class="sub">Dynamic Multi-Criteria Pathfinding with Dijkstra, A*, and Quantum-Inspired Route Selection</div>
+ </div>
+ <div class="hdr-right">
+  <div class="badge" id="dsuBadge">DSU: …</div>
+  <button id="soundBtn" title="Toggle audio feedback">🔊 Sound</button>
+  <button id="themeBtn" title="Toggle Dark/Light theme">🌓 Theme</button>
+ </div>
+</header>
+<main>
+<section>
+ <div class="card">
+  <canvas id="cv"></canvas>
+  <div id="info">Hover a cell to inspect local traffic, hazard risk, and row statistics via Segment Tree.</div>
+  <div class="row" id="tools"></div>
+  <div class="sl" style="max-width:420px"><span>Intensity</span><input id="inten" type="range" min="1" max="10" step="1" value="4"><output id="intenO">4</output></div>
+  <div class="row">
+   <button class="go" id="bRun">▶ Run (R)</button>
+   <button id="bStep">Step (Space)</button>
+   <button id="bAuto">Auto-drive</button>
+   <select id="preset">
+    <option value="city">City delivery</option>
+    <option value="maze">Maze</option>
+    <option value="field">Open field</option>
+    <option value="disaster">Disaster zone</option>
+   </select>
+   <button id="bGen">Generate</button>
+   <button id="bClr">Clear map</button>
+  </div>
+  <div class="row" id="views"></div>
+  <div class="leg">
+   <span><i style="background:var(--cy)"></i>explored</span>
+   <span><i style="background:var(--cy2)"></i>frontier</span>
+   <span><i style="background:var(--pur)"></i>quantum candidates</span>
+   <span><i style="background:var(--yel)"></i>route</span>
+   <span><i style="background:var(--red)"></i>blocked</span>
+   <span><i style="background:var(--ora)"></i>traffic</span>
+   <span><i style="background:#f43f8e"></i>risk</span>
+  </div>
+ </div>
+</section>
+<aside>
+ <div class="card">
+  <h3>Priorities (cost = wd·dist + wt·time + wr·risk)</h3>
+  <div class="sl"><span>Distance</span><input id="wd" type="range" min="0" max="5" step=".1" value="1"><output></output></div>
+  <div class="sl"><span>Time</span><input id="wt" type="range" min="0" max="5" step=".1" value="1"><output></output></div>
+  <div class="sl"><span>Risk</span><input id="wr" type="range" min="0" max="5" step=".1" value="1"><output></output></div>
+  <div class="row">
+   <button data-w="3,.3,.3">Shortest</button>
+   <button data-w=".2,3,.2">Fastest</button>
+   <button data-w=".5,.5,4">Safest</button>
+   <button data-w="1,1,1">Balanced</button>
+  </div>
+ </div>
+ <div class="card">
+  <h3>Planner settings</h3>
+  <div class="row" style="margin:0 0 6px">
+   <select id="heur"><option value="manh">A*: Manhattan</option><option value="euclid">A*: Euclidean</option></select>
+   <label class="ck"><input type="checkbox" id="dir8"> 8-direction</label>
+   <label class="ck"><input type="checkbox" id="useQ" checked> Quantum filter</label>
+   <label class="ck"><input type="checkbox" id="live"> Live traffic</label>
+  </div>
+  <div class="sl"><span>Variance σ</span><input id="sigma" type="range" min="0" max="1" step=".05" value=".3"><output></output></div>
+  <div class="sl"><span>Anim speed</span><input id="spd" type="range" min="1" max="20" step="1" value="6"><output></output></div>
+ </div>
+ <div class="card"><h3>Profiler</h3><div id="tbl" class="sub">Press Run to compare Dijkstra, A* and the quantum collapse.</div></div>
+ <div class="card"><h3>Quantum register</h3><div id="qreg" class="sub">Candidate paths appear here with amplitude-derived probability.</div></div>
+ <div class="card"><h3>Event log</h3><div id="log"></div></div>
+</aside>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const C=35,R=21,N=C*R,SQ2=Math.SQRT2;
+
+class DSU{
+ constructor(n){this.p=Int32Array.from({length:n},(_,i)=>i);this.r=new Uint8Array(n);this.c=n}
+ find(x){let r=x;while(this.p[r]!==r)r=this.p[r];while(this.p[x]!==r){const n=this.p[x];this.p[x]=r;x=n}return r}
+ union(a,b){a=this.find(a);b=this.find(b);if(a===b)return;if(this.r[a]<this.r[b])[a,b]=[b,a];this.p[b]=a;if(this.r[a]===this.r[b])this.r[a]++;this.c--}
+ conn(a,b){return this.find(a)===this.find(b)}
+}
+
+class SegTree{
+ constructor(n,v){this.n=n;this.s=new Float64Array(2*n);this.m=new Float64Array(2*n).fill(-Infinity);for(let i=0;i<n;i++)this.s[n+i]=this.m[n+i]=v;for(let i=n-1;i>0;i--)this.pull(i)}
+ pull(i){this.s[i]=this.s[2*i]+this.s[2*i+1];this.m[i]=Math.max(this.m[2*i],this.m[2*i+1])}
+ set(p,v){let i=p+this.n;this.s[i]=this.m[i]=v;for(i>>=1;i>0;i>>=1)this.pull(i)}
+ get(p){return this.s[p+this.n]}
+ sum(l,r){let a=0;for(l+=this.n,r+=this.n;l<r;l>>=1,r>>=1){if(l&1)a+=this.s[l++];if(r&1)a+=this.s[--r]}return a}
+ max(l,r){let a=-Infinity;for(l+=this.n,r+=this.n;l<r;l>>=1,r>>=1){if(l&1)a=Math.max(a,this.m[l++]);if(r&1)a=Math.max(a,this.m[--r])}return a}
+}
+
+class Heap{
+ constructor(){this.k=[];this.v=[]}
+ get n(){return this.k.length}
+ push(k,v){const K=this.k,V=this.v;let i=K.length;K.push(k);V.push(v);while(i>0){const p=(i-1)>>1;if(K[p]<=k)break;K[i]=K[p];V[i]=V[p];i=p}K[i]=k;V[i]=v}
+ pop(){const K=this.k,V=this.v,rv=V[0],lk=K.pop(),lv=V.pop(),n=K.length;if(n){let i=0;for(;;){let c=2*i+1;if(c>=n)break;if(c+1<n&&K[c+1]<K[c])c++;if(K[c]>=lk)break;K[i]=K[c];V[i]=V[c];i=c}K[i]=lk;V[i]=lv}return rv}
+}
+
+let wall,risk,tree,dsu,start,goal,agent,plan=null,planVer=0,ver=0,res=null,anim=null,view='plan',auto=null,hover=-1,tool='wall',dir8=false,travelled=0,dirty=false;
+let soundOn=true,audioCtx=null;
+const cv=$("cv"),ctx=cv.getContext("2d");
+const getW=()=>({wd:+$("wd").value,wt:+$("wt").value,wr:+$("wr").value});
+const log=m=>{const d=$("log");d.innerHTML=`<div>› ${m}</div>`+d.innerHTML.split("</div>").slice(0,7).join("</div>")};
+const rnd=()=>Math.random(),ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
+const randn=()=>Math.sqrt(-2*Math.log(Math.max(1e-9,1-rnd())))*Math.cos(2*Math.PI*rnd());
+const idx=(x,y)=>y*C+x;
+
+function beep(freq=520,dur=0.04){
+ if(!soundOn)return;
+ try{
+  if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  const osc=audioCtx.createOscillator(),g=audioCtx.createGain();
+  osc.type="sine";osc.frequency.setValueAtTime(freq,audioCtx.currentTime);
+  g.gain.setValueAtTime(0.04,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  osc.connect(g);g.connect(audioCtx.destination);
+  osc.start();osc.stop(audioCtx.currentTime+dur);
+ }catch(_){}
+}
+
+function resetMap(){
+ wall=new Uint8Array(N);
+ risk=new Float32Array(N);
+ tree=new SegTree(N,1);
+ start=idx(1,1);goal=idx(C-2,R-2);agent=start;
+ plan=null;res=null;anim=null;view='plan';travelled=0;
+}
+
+function blob(cx,cy,r,fn){
+ for(let y=0;y<R;y++)for(let x=0;x<C;x++){
+  const d=Math.hypot(x-cx,y-cy);
+  if(d<=r)fn(idx(x,y),1-d/r);
+ }
+}
+
+function generate(kind){
+ resetMap();
+ if(kind==="city"){
+  for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(x%6!==0&&y%5!==0&&rnd()<.93)wall[idx(x,y)]=1;
+  for(let k=0;k<6;k++)blob(ri(2,C-3),ri(2,R-3),ri(2,4),(i,t)=>{if(!wall[i])tree.set(i,1+t*5)});
+  for(let k=0;k<4;k++)blob(ri(2,C-3),ri(2,R-3),ri(2,3),(i,t)=>{if(!wall[i])risk[i]=Math.round(2+t*7)});
+ }else if(kind==="maze"){
+  wall.fill(1);const st=[idx(1,1)];wall[st[0]]=0;
+  while(st.length){
+   const v=st[st.length-1],x=v%C,y=(v/C)|0,o=[[2,0],[-2,0],[0,2],[0,-2]].filter(([a,b])=>x+a>0&&y+b>0&&x+a<C-1&&y+b<R-1&&wall[idx(x+a,y+b)]);
+   if(!o.length){st.pop();continue}
+   const [a,b]=o[ri(0,o.length-1)];
+   wall[idx(x+a/2,y+b/2)]=0;wall[idx(x+a,y+b)]=0;
+   st.push(idx(x+a,y+b));
+  }
+  for(let k=0;k<40;k++){const x=ri(1,C-2),y=ri(1,R-2);wall[idx(x,y)]=0}
+  for(let i=0;i<N;i++)if(!wall[i]&&rnd()<.08)risk[i]=ri(2,6);
+ }else if(kind==="field"){
+  for(let k=0;k<9;k++)blob(ri(3,C-4),ri(3,R-4),ri(1,3),i=>{wall[i]=1});
+  for(let k=0;k<5;k++)blob(ri(3,C-4),ri(3,R-4),ri(3,5),(i,t)=>{if(!wall[i])risk[i]=Math.round(1+t*8)});
+  for(let k=0;k<4;k++)blob(ri(3,C-4),ri(3,R-4),ri(3,5),(i,t)=>{if(!wall[i])tree.set(i,1+t*4)});
+ }else{
+  for(let k=0;k<22;k++)blob(ri(1,C-2),ri(1,R-2),ri(1,2),i=>{wall[i]=1});
+  for(let k=0;k<9;k++)blob(ri(2,C-3),ri(2,R-3),ri(3,6),(i,t)=>{if(!wall[i])risk[i]=Math.max(risk[i],Math.round(2+t*8))});
+  for(let k=0;k<7;k++)blob(ri(2,C-3),ri(2,R-3),ri(2,5),(i,t)=>{if(!wall[i])tree.set(i,1+t*6)});
+ }
+ wall[start]=wall[goal]=0;rebuildDSU();
+ if(!dsu.conn(start,goal)){
+  let g=0;
+  while(!dsu.conn(start,goal)&&g++<400){
+   const i=ri(0,N-1);if(wall[i]){wall[i]=0;rebuildDSU()}
+  }
+ }
+ log(`Generated “${kind}” map.`);changed(false);
+}
+
+function eachNb(i,fn){
+ const x=i%C,y=(i/C)|0;
+ for(const [dx,dy] of (dir8?D8:D4)){
+  const nx=x+dx,ny=y+dy;
+  if(nx<0||ny<0||nx>=C||ny>=R)continue;
+  const j=ny*C+nx;
+  if(wall[j])continue;
+  if(dx&&dy&&(wall[y*C+nx]||wall[ny*C+x]))continue;
+  fn(j,dx&&dy?SQ2:1);
+ }
+}
+const D4=[[1,0],[-1,0],[0,1],[0,-1]],D8=D4.concat([[1,1],[1,-1],[-1,1],[-1,-1]]);
+
+function rebuildDSU(){
+ dsu=new DSU(N);
+ for(let i=0;i<N;i++)if(!wall[i])eachNb(i,j=>dsu.union(i,j));
+ const ok=dsu.conn(start,goal);
+ $("dsuBadge").innerHTML=`DSU: ${dsu.c} comp · <b class="${ok?'ok':'bad'}">${ok?'CONNECTED':'DISCONNECTED'}</b>`;
+}
+
+const stepCost=(j,d,w,nz)=>w.wd*d+w.wt*d*tree.get(j)*(nz?nz[j]:1)+w.wr*risk[j];
+
+function unit(w,nz){
+ let m=Infinity;
+ for(let i=0;i<N;i++)if(!wall[i]){
+  const v=w.wd+w.wt*tree.get(i)*(nz?nz[i]:1)+w.wr*risk[i]/SQ2;
+  if(v<m)m=v;
+ }
+ return isFinite(m)?m:0;
+}
+
+function stats(path,w,nz){
+ let d=0,t=0,r=0,c=0;
+ for(let i=1;i<path.length;i++){
+  const a=path[i-1],b=path[i],dd=(a%C!==b%C&&((a/C)|0)!==((b/C)|0))?SQ2:1;
+  const f=tree.get(b)*(nz?nz[b]:1);
+  d+=dd;t+=dd*f;r+=risk[b];
+  c+=stepCost(b,dd,w,nz);
+ }
+ return{d,t,r,c};
+}
+
+function search(s,t,useH,nz){
+ const w=getW(),g=new Float64Array(N).fill(Infinity),par=new Int32Array(N).fill(-1),cl=new Uint8Array(N),ex=new Int32Array(N).fill(-1),ds=new Int32Array(N).fill(-1);
+ const u=useH?unit(w,nz):0,tx=t%C,ty=(t/C)|0,eu=$("heur").value==="euclid";
+ const h=v=>{if(!useH)return 0;const dx=Math.abs(v%C-tx),dy=Math.abs(((v/C)|0)-ty);return (eu?Math.hypot(dx,dy):(dir8?Math.max(dx,dy):dx+dy))*u};
+ const q=new Heap();g[s]=0;ds[s]=0;q.push(h(s),s);let popped=0,exp=0,found=false;
+ while(q.n){
+  const v=q.pop();popped++;if(cl[v])continue;cl[v]=1;ex[v]=exp++;if(v===t){found=true;break}
+  eachNb(v,(j,d)=>{
+   if(cl[j])return;
+   const ng=g[v]+stepCost(j,d,w,nz);
+   if(ng<g[j]){g[j]=ng;par[j]=v;if(ds[j]<0)ds[j]=exp;q.push(ng+h(j),j)}
+  });
+ }
+ const path=[];if(found)for(let v=t;v!==-1;v=par[v])path.push(v);path.reverse();
+ return{found,path,popped,expanded:exp,ex,ds,tot:found?stats(path,w,nz):null};
+}
+
+function noiseArr(sg){
+ const a=new Float64Array(N);
+ for(let i=0;i<N;i++)a[i]=Math.exp(sg*randn());
+ return a;
+}
+
+function quantum(s,t){
+ const w=getW(),sg=+$("sigma").value,t0=performance.now(),NC=12,NS=48,cands=[];
+ let popped=0,exp=0;
+ for(let c=0;c<NC;c++){
+  const r=search(s,t,true,c?noiseArr(sg*1.8):null);
+  popped+=r.popped;exp+=r.expanded;
+  if(!r.found)continue;
+  const k=r.path.join();
+  if(!cands.some(x=>x.k===k))cands.push({k,path:r.path,det:r.tot.c});
+ }
+ const M=cands.length;if(!M)return null;
+ const sum=new Float64Array(M),sq=new Float64Array(M);
+ for(let sc=0;sc<NS;sc++){
+  const nz=noiseArr(sg);
+  cands.forEach((c,i)=>{const x=stats(c.path,w,nz).c;sum[i]+=x;sq[i]+=x*x});
+ }
+ let best=0;
+ cands.forEach((c,i)=>{
+  c.mean=sum[i]/NS;c.sd=Math.sqrt(Math.max(0,sq[i]/NS-c.mean*c.mean));
+  c.score=c.mean+.5*c.sd;
+  if(c.score<cands[best].score)best=i;
+ });
+ let amp=new Array(M).fill(1/Math.sqrt(M));
+ const it=M>1?Math.max(1,Math.round(Math.PI/4*Math.sqrt(M))):0;
+ for(let k=0;k<it;k++){
+  amp[best]=-amp[best];
+  const m=amp.reduce((a,b)=>a+b,0)/M;
+  amp=amp.map(a=>2*m-a);
+ }
+ const nrm=amp.reduce((a,b)=>a+b*b,0);
+ let ch=0;
+ cands.forEach((c,i)=>{
+  c.prob=amp[i]*amp[i]/nrm;
+  if(c.prob>cands[ch].prob+1e-12)ch=i;
+ });
+ return{cands,chosen:ch,iters:it,popped,expanded:exp,micros:(performance.now()-t0)*1000,tot:stats(cands[ch].path,w)};
+}
+
+function changed(wallEdit=true){ver++;rebuildDSU();dirty=true;drawSoon()}
+
+function replan(){
+ if(!plan||agent===goal)return;
+ if(!dsu.conn(agent,goal)){plan=null;log("Destination unreachable (DSU).");return}
+ const r=search(agent,goal,true,null);
+ if(r.found){plan=r.path;planVer=ver;if(res)res.plan=r}
+}
+
+function run(){
+ if(agent===goal){log("Agent is already at the destination.");return}
+ rebuildDSU();
+ if(!dsu.conn(agent,goal)){
+  log("<b class='bad'>No route</b>: DSU says source and goal are disconnected. Search skipped.");
+  plan=null;res=null;$("tbl").textContent="Disconnected, nothing to search.";$("qreg").textContent="";
+  draw();return;
+ }
+ const timeIt=(fn,n=25)=>{let r;const a=performance.now();for(let i=0;i<n;i++)r=fn();return[r,(performance.now()-a)/n*1000]};
+ const [D,dt]=timeIt(()=>search(agent,goal,false,null)),[A,at]=timeIt(()=>search(agent,goal,true,null));
+ const Q=$("useQ").checked?quantum(agent,goal):null;
+ res={D,A,Q,dt,at};
+ plan=Q?Q.cands[Q.chosen].path:A.path;planVer=ver;dirty=false;
+
+ const row=(n,t,p,e,x)=>`<tr><td>${n}</td><td>${t.toFixed(1)}</td><td>${p}</td><td>${e}</td><td><b>${x.c.toFixed(2)}</b></td><td>${x.d.toFixed(1)}</td><td>${x.t.toFixed(1)}</td><td>${x.r.toFixed(1)}</td></tr>`;
+ $("tbl").innerHTML=`<table><tr><th>Algorithm</th><th>µs</th><th>Popped</th><th>Expanded</th><th>Cost</th><th>Dist</th><th>Time</th><th>Risk</th></tr>${row("Dijkstra",dt,D.popped,D.expanded,D.tot)}${row("A*",at,A.popped,A.expanded,A.tot)}${Q?row("Quantum",Q.micros,Q.popped,Q.expanded,Q.tot):""}</table><div class="sub" style="margin-top:6px">A* explored ${(100*(1-A.expanded/D.expanded)).toFixed(0)}% fewer nodes · cost match: ${Math.abs(A.tot.c-D.tot.c)<1e-6?'<b class="ok">yes</b>':'<b class="bad">no</b>'}</div>`;
+
+ $("qreg").innerHTML=Q?`<div class="sub">${Q.cands.length} superposed paths · σ=${$("sigma").value} · ${Q.iters} Grover iteration(s) · click to view</div>`+
+  Q.cands.map((c,i)=>`<div class="bar ${i===Q.chosen?'pick':''}" data-cidx="${i}"><i style="width:${(c.prob*100).toFixed(1)}%"></i><b>#${i} · ${(c.prob*100).toFixed(1)}% · E=${c.mean.toFixed(1)}±${c.sd.toFixed(1)}${i===Q.chosen?' ← collapsed':''}</b></div>`).join(""):"Quantum filter is off.";
+
+ if(Q){
+  $("qreg").querySelectorAll(".bar").forEach(b=>{
+   b.addEventListener("click",()=>{
+    const ci=+b.dataset.cidx;
+    Q.chosen=ci;plan=Q.cands[ci].path;
+    $("qreg").querySelectorAll(".bar").forEach((el,idxEl)=>el.classList.toggle("pick",idxEl===ci));
+    beep(640,0.04);draw();
+   });
+  });
+ }
+
+ const seq=["dijkstra","astar"];if(Q)seq.push("quantum");
+ startAnim(seq);beep(580,0.05);
+ log(`Run complete. Route of ${plan.length-1} steps, cost ${(Q?Q.tot:A.tot).c.toFixed(2)}.`);
+}
+
+function startAnim(seq){anim={seq,i:0,k:0,hold:0};view=seq[0];buildViews()}
+function viewTotal(v){if(v==="dijkstra")return res.D.expanded;if(v==="astar")return res.A.expanded;if(v==="quantum")return res.Q.cands.length*14+10;return 0}
+
+function stepAgent(){
+ if(agent===goal){log("Delivered. Move the goal or press Generate.");stopAuto();return}
+ if(!plan||planVer!==ver||plan[0]!==agent){replan();if(!plan){stopAuto();return}log("Graph changed → re-planned with A*.")}
+ const i=plan.indexOf(agent);const nxt=plan[i+1];if(nxt===undefined)return;
+ travelled+=stats([agent,nxt],getW()).c;
+ agent=nxt;
+ plan=plan.slice(plan.indexOf(agent));planVer=ver;
+ beep(440,0.03);
+ if(agent===goal){
+  beep(880,0.12);
+  log(`<b class="ok">Delivered!</b> Travelled composite cost ${travelled.toFixed(2)}.`);
+  stopAuto();
+ }
+ draw();
+}
+function stopAuto(){if(auto){clearInterval(auto);auto=null;$("bAuto").classList.remove("on")}}
+
+/* ---------- rendering ---------- */
+let needDraw=false;
+function drawSoon(){if(!needDraw){needDraw=true;requestAnimationFrame(()=>{needDraw=false;if(dirty&&plan){dirty=false;replan()}draw()})}}
+const cs=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function draw(){
+ const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+ if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ const s=W/C,c={cell:cs("--cell"),wall:cs("--wall"),red:cs("--red"),cy:cs("--cy"),cy2:cs("--cy2"),yel:cs("--yel"),grn:cs("--grn"),pur:cs("--pur"),ora:cs("--ora"),line:cs("--line")};
+ ctx.clearRect(0,0,W,H);ctx.fillStyle=c.cell;ctx.fillRect(0,0,W,H);
+ let v=view,k=0,total=0;
+ if(res&&(v==="dijkstra"||v==="astar"||v==="quantum")){total=viewTotal(v);k=anim?anim.k:total}
+ const r=res&&(v==="dijkstra"?res.D:v==="astar"?res.A:null);
+
+ for(let i=0;i<N;i++){
+  const x=i%C,y=(i/C)|0,px=x*s,py=y*s;
+  if(wall[i]){
+   ctx.fillStyle=c.wall;ctx.fillRect(px+.5,py+.5,s-1,s-1);
+   ctx.strokeStyle=c.red;ctx.globalAlpha=.7;ctx.strokeRect(px+s*.25,py+s*.25,s*.5,s*.5);ctx.globalAlpha=1;
+   continue;
+  }
+  const f=tree.get(i);
+  if(f>1.01){ctx.fillStyle=c.ora;ctx.globalAlpha=Math.min(.8,(f-1)/7+.12);ctx.fillRect(px,py,s,s);ctx.globalAlpha=1}
+  if(r){
+   const e=r.ex[i];
+   if(e>=0&&e<k){ctx.fillStyle=c.cy;ctx.globalAlpha=.35;ctx.fillRect(px+1,py+1,s-2,s-2);ctx.globalAlpha=1}
+   else if(r.ds[i]>=0&&r.ds[i]<=k&&(e<0||e>=k)){ctx.strokeStyle=c.cy2;ctx.strokeRect(px+2,py+2,s-4,s-4)}
+  }
+  if(risk[i]>0){
+   ctx.fillStyle="#f43f8e";ctx.globalAlpha=.9;
+   ctx.beginPath();ctx.arc(px+s/2,py+s/2,s*.07+s*.04*risk[i],0,7);ctx.fill();ctx.globalAlpha=1;
+  }
+ }
+
+ ctx.strokeStyle=c.line;ctx.globalAlpha=.35;ctx.beginPath();
+ for(let x=0;x<=C;x++){ctx.moveTo(x*s,0);ctx.lineTo(x*s,R*s)}
+ for(let y=0;y<=R;y++){ctx.moveTo(0,y*s);ctx.lineTo(C*s,y*s)}
+ ctx.stroke();ctx.globalAlpha=1;
+
+ const line=(p,col,wd,al,glow)=>{
+  if(!p||p.length<2)return;
+  ctx.save();ctx.strokeStyle=col;ctx.lineWidth=wd;ctx.globalAlpha=al;ctx.lineJoin=ctx.lineCap="round";
+  if(glow){ctx.shadowColor=col;ctx.shadowBlur=glow}
+  ctx.beginPath();
+  p.forEach((n,i)=>{const X=(n%C+.5)*s,Y=(((n/C)|0)+.5)*s;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});
+  ctx.stroke();ctx.restore();
+ };
+
+ if(res&&v==="quantum"&&res.Q){
+  const show=Math.min(res.Q.cands.length,Math.floor(k/14)+1);
+  res.Q.cands.forEach((cd,i)=>{if(i<show)line(cd.path,c.pur,s*.14,.45,8)});
+  if(!anim||k>=total-10)line(res.Q.cands[res.Q.chosen].path,c.grn,s*.26,1,14);
+ }else if(r&&k>=total){
+  line(r.path,c.yel,s*.26,1,14);
+ }
+ if(plan&&(!res||v==="plan"||!anim)){
+  line(plan,v==="plan"||!res?c.grn:c.yel,s*.16,.9,10);
+ }
+
+ const dot=(i,col,lab)=>{
+  const X=(i%C+.5)*s,Y=(((i/C)|0)+.5)*s;
+  ctx.save();ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=16;
+  ctx.beginPath();ctx.arc(X,Y,s*.38,0,7);ctx.fill();ctx.restore();
+  ctx.fillStyle="#000";ctx.font=`700 ${s*.42}px system-ui`;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(lab,X,Y+1);
+ };
+
+ dot(goal,c.grn,"G");
+ if(start!==agent)dot(start,"#9aa3c7","S");
+ dot(agent,c.yel,"●");
+
+ if(hover>=0){
+  ctx.strokeStyle="#fff";ctx.lineWidth=2;
+  ctx.strokeRect((hover%C)*s+1,((hover/C)|0)*s+1,s-2,s-2);ctx.lineWidth=1;
+ }
+}
+
+function buildViews(){
+ const d=$("views");d.innerHTML="";if(!res)return;
+ [["dijkstra","Dijkstra"],["astar","A*"],["quantum","Quantum"],["plan","Route only"]].forEach(([k,l])=>{
+  if(k==="quantum"&&!res.Q)return;
+  const b=document.createElement("button");b.textContent=l;b.className=view===k?"on":"";
+  b.onclick=()=>{if(k==="plan"){anim=null;view="plan"}else{anim={seq:[k],i:0,k:0,hold:0};view=k}buildViews();draw()};
+  d.appendChild(b);
+ });
+}
+
+function tick(){
+ if(anim&&res){
+  const tot=viewTotal(view);
+  if(anim.k<tot)anim.k+=+$("spd").value*(view==="quantum"?.35:1);
+  else{
+   anim.hold++;
+   if(anim.hold>25){
+    if(anim.i+1<anim.seq.length){anim.i++;view=anim.seq[anim.i];anim.k=0;anim.hold=0;buildViews()}
+    else{anim=null;view=res.Q?"quantum":"astar";buildViews()}
+   }
+  }
+  draw();
+ }
+ requestAnimationFrame(tick);
+}
+
+/* ---------- interaction ---------- */
+const TOOLS=[["wall","▦ Block"],["erase","✕ Erase"],["traffic","≈ Traffic"],["risk","⚠ Risk"],["start","S Start"],["goal","G Goal"]];
+TOOLS.forEach(([k,l])=>{
+ const b=document.createElement("button");b.textContent=l;b.dataset.k=k;
+ b.onclick=()=>{tool=k;[...$("tools").children].forEach(x=>x.classList.toggle("on",x.dataset.k===k))};
+ $("tools").appendChild(b);
+});
+$("tools").children[0].classList.add("on");
+
+function cellAt(e){
+ const r=cv.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/r.width*C),y=Math.floor((e.clientY-r.top)/r.height*R);
+ return x<0||y<0||x>=C||y>=R?-1:idx(x,y);
+}
+let painting=false;
+function paint(i,first){
+ if(i<0)return;
+ const v=+$("inten").value;
+ if(tool==="start"||tool==="goal"){
+  if(!first||wall[i])return;
+  if(tool==="start"){if(i===goal)return;start=i;agent=i;travelled=0;plan=null}
+  else{if(i===agent)return;goal=i}
+  log(`${tool} moved to cell ${i}.`);changed();return;
+ }
+ if(i===agent||i===goal)return;
+ if(tool==="wall"){if(wall[i])return;wall[i]=1;log(`Blocked cell ${i}; DSU updated.`)}
+ else if(tool==="erase"){wall[i]=0;risk[i]=0;tree.set(i,1)}
+ else if(tool==="traffic"){if(wall[i])return;tree.set(i,v)}
+ else if(tool==="risk"){if(wall[i])return;risk[i]=v}
+ changed();
+}
+
+cv.addEventListener("pointerdown",e=>{painting=true;cv.setPointerCapture(e.pointerId);paint(cellAt(e),true)});
+cv.addEventListener("pointermove",e=>{
+ const i=cellAt(e);
+ if(i!==hover){
+  hover=i;
+  if(i>=0){
+   const row=(i/C)|0;
+   $("info").textContent=`Cell ${i} (${i%C},${row}) · traffic ×${tree.get(i).toFixed(1)} · risk ${risk[i]} · row ${row} avg traffic ×${(tree.sum(row*C,row*C+C)/C).toFixed(2)}, max ×${tree.max(row*C,row*C+C).toFixed(1)} (segment-tree range query)`;
+  }
+  drawSoon();
+ }
+ if(painting)paint(i,false);
+});
+cv.addEventListener("pointerup",()=>painting=false);
+cv.addEventListener("pointerleave",()=>{hover=-1;painting=false;drawSoon()});
+
+$("bRun").onclick=run;
+$("bStep").onclick=stepAgent;
+$("bAuto").onclick=()=>{if(auto){stopAuto();return}if(!plan)run();$("bAuto").classList.add("on");auto=setInterval(stepAgent,260)};
+$("bGen").onclick=()=>{stopAuto();generate($("preset").value)};
+$("preset").onchange=$("bGen").onclick;
+$("bClr").onclick=()=>{
+ stopAuto();resetMap();rebuildDSU();
+ $("tbl").textContent="Map cleared.";$("qreg").textContent="";$("views").innerHTML="";
+ log("Map cleared.");draw();
+};
+
+document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{
+ const [a,c,d]=b.dataset.w.split(",");
+ $("wd").value=a;$("wt").value=c;$("wr").value=d;
+ syncOut();ver++;log(`Priorities → dist ${a}, time ${c}, risk ${d}.`);dirty=true;drawSoon();
+});
+
+function syncOut(){
+ ["wd","wt","wr","sigma","spd"].forEach(id=>$(id).parentNode.querySelector("output").textContent=$(id).value);
+ $("intenO").textContent=$("inten").value;
+}
+["wd","wt","wr","sigma","spd","inten"].forEach(id=>$(id).addEventListener("input",()=>{
+ syncOut();
+ if(["wd","wt","wr"].includes(id)){ver++;dirty=true;drawSoon()}
+}));
+
+$("dir8").onchange=e=>{dir8=e.target.checked;changed();log(dir8?"8-direction movement.":"4-direction movement.")};
+$("heur").onchange=()=>log("Heuristic changed.");
+$("live").onchange=e=>{
+ if(e.target.checked){
+  window._live=setInterval(()=>{
+   for(let k=0;k<5;k++){
+    const i=ri(0,N-1);if(wall[i]||i===agent)continue;
+    tree.set(i,Math.max(1,Math.min(8,tree.get(i)+(rnd()<.5?-1.2:1.5))));
+   }
+   ver++;dirty=true;drawSoon();
+  },1200);
+  log("Live traffic ON: congestion fluctuates and routes adapt.");
+ }else{
+  clearInterval(window._live);
+  log("Live traffic OFF.");
+ }
+};
+
+$("soundBtn").onclick=()=>{
+ soundOn=!soundOn;
+ $("soundBtn").textContent=soundOn?"🔊 Sound":"🔇 Muted";
+ if(soundOn)beep(660,0.05);
+};
+
+$("themeBtn").onclick=()=>{
+ const cur=document.documentElement.getAttribute("data-theme")||"dark";
+ const nxt=cur==="dark"?"light":"dark";
+ document.documentElement.setAttribute("data-theme",nxt);
+ drawSoon();
+};
+
+addEventListener("keydown",e=>{
+ if(e.target.tagName==="SELECT")return;
+ if(e.key==="r"||e.key==="R")run();
+ else if(e.key===" "){e.preventDefault();stepAgent()}
+});
+addEventListener("resize",drawSoon);
+syncOut();generate("city");requestAnimationFrame(tick);
+</script>
+</body>
+</html>
